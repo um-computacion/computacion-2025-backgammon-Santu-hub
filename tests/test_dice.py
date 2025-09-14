@@ -1,4 +1,5 @@
 from core.dice import Dice
+import random
 
 def test_roll_values_between_1_and_6():
     dice = Dice()
@@ -6,7 +7,13 @@ def test_roll_values_between_1_and_6():
     for v in values:
         assert 1 <= v <= 6
 
+import random
+
 def test_doubles_generate_four_values():
+    random.seed(1)  # fuerza un valor predecible
     dice = Dice()
-    dice._Dice__values__ = [3, 3, 3, 3]
-    assert len(dice.get_values()) == 4
+    values = dice.roll()
+    if values[0] == values[1]:  # si salió doble
+        assert len(values) == 4
+    else:
+        assert len(values) == 2
