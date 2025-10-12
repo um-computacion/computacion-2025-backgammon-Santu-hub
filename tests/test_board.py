@@ -64,3 +64,23 @@ def test_initial_board_setup():
     # Verificar que el total de fichas en el tablero es correcto
     total_checkers_on_board = sum(len(p) for p in board._points)
     assert total_checkers_on_board == 30  # 15 por jugador
+
+
+def test_move_checker_valid_move():
+    """Verifica que una ficha se mueve de un punto a otro."""
+    board = Board()
+    player1 = Player("Alice", "W")
+    board.place_checker(0, player1)
+
+    board.move_checker(0, 5)
+
+    assert len(board.get_point(0)) == 0
+    assert len(board.get_point(5)) == 1
+    assert board.get_point(5)[0] == player1
+
+
+def test_move_checker_from_empty_point_raises_error():
+    """Verifica que mover desde un punto vacío lanza ValueError."""
+    board = Board()
+    with pytest.raises(ValueError, match="No hay fichas en el punto 1"):
+        board.move_checker(1, 5)
