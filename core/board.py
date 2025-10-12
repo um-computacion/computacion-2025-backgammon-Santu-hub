@@ -40,3 +40,11 @@ class Board:
             self._points[index].append(player)
         else:
             raise IndexError("Índice de punto inválido")
+
+    def move_checker(self, from_point: int, to_point: int):
+        """Mueve una ficha de un punto a otro."""
+        if not self.get_point(from_point):
+            raise ValueError(f"No hay fichas en el punto {from_point}")
+
+        player = self.get_point(from_point).pop()
+        self.place_checker(to_point, player)
