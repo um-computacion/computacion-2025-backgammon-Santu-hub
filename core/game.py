@@ -10,26 +10,27 @@ class BackgammonGame:
 
     def __init__(self):
         """Inicializa el juego, creando el tablero, los dados y los jugadores."""
-        self.__board__ = Board()
-        self.__dice__ = Dice()
-        self.__player1__ = Player("Player 1", "W")  # Fichas Blancas (White)
-        self.__player2__ = Player("Player 2", "B")  # Fichas Negras (Black)
+        self._board = Board()
+        self._dice = Dice()
+        self._player1 = Player("Player 1", "W")  # Fichas Blancas (White)
+        self._player2 = Player("Player 2", "B")  # Fichas Negras (Black)
 
         # Configura el tablero con la posición inicial de las fichas
-        self.__board__.__setup_initial_checkers__(self.__player1__, self.__player2__)
+        self._board._setup_initial_checkers(self._player1, self._player2)
 
-    def __roll_dice__(self):
+    def roll_dice(self):
         """Lanza los dados y devuelve los valores."""
-        return self.__dice__.roll()
+        return self._dice.roll()
 
-    def __get_board__(self) -> Board:
+    def get_board(self) -> Board:
         """Devuelve la instancia del tablero."""
-        return self.__board__
+        return self._board
 
-    def __get_player1__(self) -> Player:
+    def get_player1(self) -> Player:
         """Devuelve al jugador 1."""
-        return self.__player1__
+        return self._player1
 
-    def __get_player2__(self) -> Player:
+    def get_player2(self) -> Player:
         """Devuelve al jugador 2."""
-        return self.__player2__
+        return self._player2
+
