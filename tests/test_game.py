@@ -31,3 +31,22 @@ def test_game_roll_dice():
     dice_roll = game.roll_dice()
     assert isinstance(dice_roll, list)
     assert len(dice_roll) in [2, 4]  # Puede ser 2 o 4 (en caso de dobles)
+
+
+def test_turn_management():
+    """Verifica que la gestión de turnos funciona correctamente."""
+    game = BackgammonGame()
+    p1 = game.get_player1()
+    p2 = game.get_player2()
+
+    assert game.current_player == p1
+    game.switch_player()
+    assert game.current_player == p2
+    game.switch_player()
+    assert game.current_player == p1
+
+
+def test_check_winner_no_winner():
+    """Verifica que no hay ganador al inicio del juego."""
+    game = BackgammonGame()
+    assert game.check_winner() is None
