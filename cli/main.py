@@ -29,8 +29,19 @@ def main():
     board = game.get_board()
 
     print("¡Bienvenido a Backgammon!")
-    print("Comandos: (de,a), (bar,a), (de,off), 'pass', 'quit'")
 
+    print("\n" + "="*50)
+    print("COMANDOS DISPONIBLES:")
+    print("  (origen,destino) - Mover ficha normal (ej: 0,5)")
+    print("  (bar,destino)    - Reingresar desde barra")
+    print("                     Blanco: bar,0 hasta bar,5")
+    print("                     Negro: bar,18 hasta bar,23")
+    print("  (origen,off)     - Retirar ficha (ej: 18,off)")
+    print("  pass             - Pasar turno")
+    print("  quit             - Salir")
+    print("="*50 + "\n")
+
+    
     while True:
         print("\n" + "="*50)
         print_board(board)
@@ -79,7 +90,7 @@ def main():
                 
                 moves_left.remove(used_roll)
                 print(f"✓ Movimiento realizado. Quedan: {moves_left}")
-
+                print_board(board)
                 winner = game.check_winner()
                 if winner:
                     print("\n" + "="*50)
