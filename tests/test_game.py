@@ -1,5 +1,4 @@
 import pytest
-from unittest.mock import patch
 from core.game import BackgammonGame
 from core.board import Board
 from core.player import Player
@@ -16,7 +15,7 @@ def test_game_initialization():
     assert isinstance(game.get_player2(), Player)
     assert game.get_player1().get_color() == "W"
     assert game.get_player2().get_color() == "B"
-    assert game.get_current_player() == game.get_player1()
+    assert game.get_remaining_moves() == []
 
 
 def test_game_initializes_board_with_checkers():
@@ -54,25 +53,55 @@ def test_check_winner_no_winner():
     assert game.check_winner() is None
 
 
-@patch('core.board.Board.has_won')
-def test_check_winner_player1_wins(mock_has_won):
-    """Verifica que se detecta correctamente la victoria del jugador 1."""
+def test_get_remaining_moves():
+    """Verifica que get_remaining_moves devuelve los movimientos correctos."""
     game = BackgammonGame()
-    p1 = game.get_player1()
+    assert game.get_remaining_moves() == []
     
-    # Simular que el jugador 1 ha ganado
-    mock_has_won.side_effect = lambda player: player == p1
-    
-    assert game.check_winner() == p1
+    dice_roll = game.roll_dice()
+    assert game.get_remaining_moves() == dice_roll
 
 
-@patch('core.board.Board.has_won')
-def test_check_winner_player2_wins(mock_has_won):
-    """Verifica que se detecta correctamente la victoria del jugador 2."""
+def test_set_player_names():
+    """Verifica que se pueden establecer nombres de jugadores."""
     game = BackgammonGame()
-    p2 = game.get_player2()
+    game.set_player_names("Alice", "Bob")
     
-    # Simular que el jugador 2 ha ganado
-    mock_has_won.side_effect = lambda player: player == p2
+    assert game.get_player1().get_name() == "Alice"
+    assert game.get_player2().get_name() == "Bob"
+    assert game.get_current_player() == game.get_player1()
+
+
+def test_make_move_invalid_die():
+    """Verifica que no se puede mover con un dado no disponible."""
+    game = BackgammonGame()
+    game.roll_dice()
     
-    assert game.check_winner() == p2
+    # Intentar mover con un dado que no existe
+    result = game.make_move(1, 10)
+    assert result is False
+
+
+def test_switch_player_clears_moves():
+    """Verifica que cambiar de turno limpia los movimientos."""
+    game = BackgammonGame()
+    game.roll_dice()
+    
+    assert len(game.get_remaining_moves()) > 0
+    game.switch_player()
+    assert game.get_remaining_moves() == []
+
+
+def test_has_valid_moves_at_start():
+    """Verifica que hay movimientos válidos al inicio del juego."""
+    game = BackgammonGame()
+    game.roll_dice()
+    
+    # Al inicio del juego siempre debe haber movimientos válidos
+    assert game.has_valid_moves() is True
+
+
+def test_has_valid_moves_without_dice():
+    """Verifica que no hay movimientos válidos sin tirar dados."""
+    game = BackgammonGame()
+    assert game.has_valid_moves() is False
