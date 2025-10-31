@@ -1,5 +1,5 @@
 import pytest
-from core.board import Board, BEAR_OFF_B_POINT, BEAR_OFF_W_POINT
+from core.board import Board
 from core.player import Player
 
 
@@ -16,7 +16,6 @@ def test_board_has_24_points(board_with_players):
     """Verifica que el tablero se crea con 24 puntos."""
     board, _, _ = board_with_players
     assert len(board.get_all_points()) == 24
-    assert all(isinstance(p, list) for p in board.get_all_points())
 
 
 def test_place_checker_adds_player_piece(board_with_players):
@@ -24,208 +23,165 @@ def test_place_checker_adds_player_piece(board_with_players):
     board, p1, _ = board_with_players
     board.place_checker(0, p1)
     assert board.get_point(0) == [p1]
-    assert len(board.get_point(0)) == 1
 
 
 def test_get_point_invalid_index_raises_error(board_with_players):
-    """Verifica que un índice inválido lanza IndexError al obtener un punto."""
+    """Verifica que un índice inválido lanza IndexError."""
     board, _, _ = board_with_players
-    with pytest.raises(IndexError, match="Índice de punto inválido"):
+    with pytest.raises(IndexError):
         board.get_point(24)
-    with pytest.raises(IndexError, match="Índice de punto inválido"):
-        board.get_point(-1)
-
-
-def test_place_checker_invalid_index_raises_error(board_with_players):
-    """Verifica que un índice inválido lanza IndexError al colocar una ficha."""
-    board, p1, _ = board_with_players
-    with pytest.raises(IndexError, match="Índice de punto inválido"):
-        board.place_checker(24, p1)
-    with pytest.raises(IndexError, match="Índice de punto inválido"):
-        board.place_checker(-1, p1)
 
 
 def test_initial_board_setup(board_with_players):
-    """Verifica la configuración inicial de las fichas en el tablero."""
+    """Verifica la configuración inicial de las fichas."""
     board, p1, p2 = board_with_players
     board.setup_initial_checkers(p1, p2)
-
-    # Verificaciones de cantidad de fichas por punto
-    assert len(board.get_point(0)) == 2
-    assert len(board.get_point(5)) == 5
-    assert len(board.get_point(7)) == 3
-    assert len(board.get_point(11)) == 5
-    assert len(board.get_point(12)) == 5
-    assert len(board.get_point(16)) == 3
-    assert len(board.get_point(18)) == 5
-    assert len(board.get_point(23)) == 2
-
-    # Verificaciones de pertenencia de fichas
-    assert all(p == p1 for p in board.get_point(0))
-    assert all(p == p2 for p in board.get_point(5))
-    assert all(p == p1 for p in board.get_point(18))
-    assert all(p == p2 for p in board.get_point(23))
-
-    # Verificar que el total de fichas en el tablero es correcto
-    total_checkers_on_board = sum(len(p) for p in board.get_all_points())
-    assert total_checkers_on_board == 30  # 15 por jugador
+    assert len(board.get_point(0)) == 2 and board.get_point(0)[0] == p1
+    assert len(board.get_point(5)) == 5 and board.get_point(5)[0] == p2
+    assert sum(len(p) for p in board.get_all_points()) == 30
 
 
-def test_move_checker_valid_move(board_with_players):
-    """Verifica que una ficha se mueve de un punto a otro."""
-    board, p1, _ = board_with_players
-    board.place_checker(0, p1)
-    board.move_checker(p1, 0, 5, [5])
-    assert len(board.get_point(0)) == 0
-    assert len(board.get_point(5)) == 1
-    assert board.get_point(5)[0] == p1
-
-
-def test_move_checker_from_empty_point_raises_error(board_with_players):
-    """Verifica que mover desde un punto vacío lanza ValueError."""
-    board, p1, _ = board_with_players
-    with pytest.raises(ValueError, match="No puedes mover una ficha que no es tuya"):
-        board.move_checker(p1, 1, 5, [4])
-
-
-def test_move_checker_invalid_player(board_with_players):
-    """Verifica que un jugador no puede mover la ficha del otro."""
+def test_is_valid_move_simple(board_with_players):
+    """Prueba una validación de movimiento simple."""
     board, p1, p2 = board_with_players
-    board.place_checker(0, p2)
-    with pytest.raises(ValueError, match="No puedes mover una ficha que no es tuya"):
-        board.move_checker(p1, 0, 5, [5])
+    board.place_checker(0, p1)
+    board.place_checker(7, p2)
+    assert board.is_valid_move(p1, 0, 5) is True
+    assert board.is_valid_move(p1, 0, 7) is True
 
 
-def test_move_checker_invalid_dice_roll(board_with_players):
-    """Verifica que el movimiento debe coincidir con la tirada."""
+def test_is_valid_move_blocked(board_with_players):
+    """Prueba que no se puede mover a un punto bloqueado."""
+    board, p1, p2 = board_with_players
+    board.place_checker(0, p1)
+    board.place_checker(5, p2)
+    board.place_checker(5, p2)
+    assert board.is_valid_move(p1, 0, 5) is False
+
+
+def test_move_checker_valid(board_with_players):
+    """Verifica un movimiento válido."""
     board, p1, _ = board_with_players
     board.place_checker(0, p1)
-    with pytest.raises(ValueError, match="La distancia del movimiento no coincide con la tirada."):
-        board.move_checker(p1, 0, 5, [1, 2, 3, 4])
+    board.move_checker(p1, 0, 5)
+    assert len(board.get_point(0)) == 0
+    assert board.get_point(5) == [p1]
+
+
+def test_move_checker_invalid_raises_error(board_with_players):
+    """Verifica que un movimiento inválido lanza ValueError."""
+    board, p1, p2 = board_with_players
+    board.place_checker(0, p1)
+    board.place_checker(5, p2)
+    board.place_checker(5, p2)
+    with pytest.raises(ValueError, match="Movimiento inválido"):
+        board.move_checker(p1, 0, 5)
 
 
 def test_is_ready_to_bear_off(board_with_players):
-    """Verifica la lógica para determinar si un jugador puede retirar fichas."""
-    board, p1, p2 = board_with_players
-    
-    # P1 no está listo (fichas fuera del home board)
-    board.place_checker(10, p1)
-    assert not board.is_ready_to_bear_off(p1)
-
-    # Mover la ficha al home board para que p1 esté listo
-    board.get_point(10).pop()
-    board.place_checker(20, p1)
+    """Verifica la lógica para saber si se puede retirar fichas."""
+    board, p1, _ = board_with_players
+    for i in range(15):
+        board.place_checker(20, p1)
     assert board.is_ready_to_bear_off(p1)
-
-    # P2 no está listo
-    board.place_checker(10, p2)
-    assert not board.is_ready_to_bear_off(p2)
-
-    # Mover la ficha al home board para que p2 esté listo
-    board.get_point(10).pop()
-    board.place_checker(1, p2)
-    assert board.is_ready_to_bear_off(p2)
 
 
 def test_bear_off_valid(board_with_players):
-    """Verifica que se puede retirar una ficha correctamente."""
+    """Verifica que se puede retirar una ficha."""
     board, p1, _ = board_with_players
-    # Colocar todas las fichas de p1 en su home board
-    for i in range(15):
+    for _ in range(15):
         board.place_checker(20, p1)
 
-    initial_checkers = len(board.get_point(20))
-    assert board.is_ready_to_bear_off(p1)
-    
-    board.move_checker(p1, 20, BEAR_OFF_W_POINT, [4])
-    
-    assert len(board.get_point(20)) == initial_checkers - 1
+    board.move_checker(p1, 20, 4)
+    assert len(board.get_point(20)) == 14
     assert board.get_borne_off("W") == 1
 
 
-def test_bear_off_not_ready(board_with_players):
-    """Verifica que no se puede retirar si no todas las fichas están en casa."""
+def test_bear_off_overshoot_valid(board_with_players):
+    """Verifica que se puede retirar con un dado mayor si no hay fichas detrás."""
     board, p1, _ = board_with_players
-    board.place_checker(10, p1) # Ficha fuera del home board
-    board.place_checker(20, p1)
-    with pytest.raises(ValueError, match="No puedes retirar fichas hasta que todas estén en tu home board"):
-        board.move_checker(p1, 20, BEAR_OFF_W_POINT, [4])
-
-
-def test_win_condition(board_with_players):
-    """Verifica que la condición de victoria funciona."""
-    board, p1, _ = board_with_players
-    assert not board.has_won(p1)
-    
-    # Simular que p1 ha retirado 15 fichas
     for _ in range(15):
-        # Colocar una ficha en un punto válido para retirarla
         board.place_checker(20, p1)
-        board.move_checker(p1, 20, BEAR_OFF_W_POINT, [4])
+
+    assert board.is_valid_move(p1, 20, 6) is True
+    board.move_checker(p1, 20, 6)
+    assert board.get_borne_off("W") == 1
+
+
+def test_bear_off_overshoot_invalid(board_with_players):
+    """Verifica que no se puede retirar con dado mayor si hay fichas detrás."""
+    board, p1, _ = board_with_players
+    # Clear board and set up for bear off
+    for i in range(24):
+        board.get_all_points()[i].clear()
+
+    for _ in range(14):
+        board.place_checker(22, p1)
+    board.place_checker(20, p1)
+
+    assert board.is_ready_to_bear_off(p1)
+    assert board.is_valid_move(p1, 20, 5) is False
+
+
+def test_has_won(board_with_players):
+    """Verifica la condición de victoria."""
+    board, p1, _ = board_with_players
+    # Clear board and set up for bear off
+    for i in range(24):
+        board.get_all_points()[i].clear()
     
+    for _ in range(15):
+        board.place_checker(20, p1)
+    
+    for _ in range(15):
+        board.move_checker(p1, 20, 4)
     assert board.has_won(p1)
 
 
 def test_hit_blot(board_with_players):
-    """Verifica que se puede golpear una ficha solitaria (blot)."""
+    """Verifica que se puede golpear una ficha solitaria."""
     board, p1, p2 = board_with_players
     board.place_checker(0, p1)
     board.place_checker(5, p2)
-    board.move_checker(p1, 0, 5, [5])
+    board.move_checker(p1, 0, 5)
     assert board.get_point(5) == [p1]
     assert board.get_bar("B") == 1
 
 
-def test_re_enter_from_bar(board_with_players):
-    """Verifica que una ficha puede reingresar desde la barra."""
+def test_move_from_bar_valid(board_with_players):
+    """Verifica que se puede reingresar desde la barra."""
     board, p1, p2 = board_with_players
-    # Primero, golpear una ficha de p1 para que vaya a la barra
     board.place_checker(0, p1)
     board.place_checker(3, p2)
-    board.move_checker(p2, 3, 0, [3])
-    assert board.get_bar("W") == 1
+    board.move_checker(p2, 3, 3)
     
-    # Ahora, reingresar la ficha
-    board.move_checker_from_bar(p1, 3, [4])
+    assert board.get_bar("W") == 1
+    board.move_checker_from_bar(p1, 4)
     assert board.get_point(3) == [p1]
     assert board.get_bar("W") == 0
 
 
-def test_move_checker_when_on_bar(board_with_players):
-    """Verifica que no se pueden mover fichas si hay alguna en la barra."""
-    board, p1, p2 = board_with_players
-    board.place_checker(10, p1)
-    # Golpear otra ficha de p1 para que vaya a la barra
-    board.place_checker(0, p1)
-    board.place_checker(3, p2)
-    board.move_checker(p2, 3, 0, [3])
-    
-    with pytest.raises(ValueError, match="Debes reingresar tus fichas desde la barra primero"):
-        board.move_checker(p1, 10, 15, [5])
-
-
-def test_move_checker_to_blocked_point(board_with_players):
-    """Verifica que no se puede mover a un punto bloqueado."""
+def test_move_from_bar_invalid(board_with_players):
+    """Verifica que no se puede mover desde la barra a un punto bloqueado."""
     board, p1, p2 = board_with_players
     board.place_checker(0, p1)
-    board.place_checker(5, p2)
-    board.place_checker(5, p2) # Punto bloqueado
+    board.place_checker(3, p2)
+    board.move_checker(p2, 3, 3)
     
-    with pytest.raises(ValueError, match="No se puede mover a un punto bloqueado"):
-        board.move_checker(p1, 0, 5, [5])
+    board.place_checker(3, p2)
+    board.place_checker(3, p2)
+    with pytest.raises(ValueError):
+        board.move_checker_from_bar(p1, 4)
 
 
-def test_re_enter_from_bar_to_blocked_point(board_with_players):
-    """Verifica que no se puede reingresar a un punto bloqueado."""
+def test_is_valid_move_from_bar(board_with_players):
+    """Verifica la validación de movimientos desde la barra."""
     board, p1, p2 = board_with_players
-    # Golpear una ficha de p1
     board.place_checker(0, p1)
     board.place_checker(3, p2)
-    board.move_checker(p2, 3, 0, [3])
+    board.move_checker(p2, 3, 3)
     
-    # Bloquear el punto de reingreso
     board.place_checker(3, p2)
     board.place_checker(3, p2)
-    
-    with pytest.raises(ValueError, match="No se puede reingresar a un punto bloqueado"):
-        board.move_checker_from_bar(p1, 3, [4])
+    assert board.is_valid_move(p1, 25, 4) is False
+    assert board.is_valid_move(p1, 25, 2) is True

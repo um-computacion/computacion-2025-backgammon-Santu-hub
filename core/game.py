@@ -1,4 +1,4 @@
-from core.board import Board, BEAR_OFF_W_POINT, BEAR_OFF_B_POINT
+from core.board import Board
 from core.dice import Dice
 from core.player import Player
 from typing import List
@@ -23,17 +23,14 @@ class BackgammonGame:
     def __init__(self):
         """
         Inicializa el juego, creando el tablero, los dados y los jugadores.
-        Configura el tablero con la posición inicial de las fichas.
         """
         self.__board__ = Board()
         self.__dice__ = Dice()
-        self.__player1__ = Player("Player 1", "W")  # Fichas Blancas (White)
-        self.__player2__ = Player("Player 2", "B")  # Fichas Negras (Black)
+        self.__player1__ = Player("Player 1", "W")
+        self.__player2__ = Player("Player 2", "B")
         self.__current_player__ = self.__player1__
-        self.__remaining_moves__ = []  # ← AGREGAR ESTO
-
-        # Configura el tablero con la posición inicial de las fichas
-        self.__board__.setup_initial_checkers(self.__player1__, self.__player2__)
+        self.__remaining_moves__ = []
+        self.start_new_game("Player 1", "Player 2")
 
     def get_current_player(self) -> Player:
         """
@@ -52,7 +49,7 @@ class BackgammonGame:
             self.__player2__ if self.__current_player__ == self.__player1__ 
             else self.__player1__
         )
-        self.__remaining_moves__ = []  # Limpiar movimientos al cambiar turno
+        self.__remaining_moves__ = []
 
     def check_winner(self) -> Player | None:
         """
@@ -91,7 +88,7 @@ class BackgammonGame:
         Realiza un movimiento.
         
         Args:
-            from_point (int): Punto de origen (1-24, 25 for bar)
+            from_point (int): Punto de origen (1-24, 25 para la barra)
             die_value (int): Valor del dado a utilizar
         
         Returns:
@@ -102,43 +99,17 @@ class BackgammonGame:
 
         player = self.get_current_player()
         
-        if from_point == 25:  # Move from bar
-            to_point = (die_value - 1) if player.get_color() == "W" else (24 - die_value)
-            try:
-                self.__board__.move_checker_from_bar(player, to_point, [die_value])
-                self.__remaining_moves__.remove(die_value)
-                return True
-            except ValueError:
-                return False
-        else:
-            to_point = (from_point - 1 + die_value) if player.get_color() == "W" else (from_point - 1 - die_value)
+        try:
+            if from_point == 25:
+                self.__board__.move_checker_from_bar(player, die_value)
+            else:
+                self.__board__.move_checker(player, from_point - 1, die_value)
             
-            # Bearing off
-            if self.__board__.is_ready_to_bear_off(player):
-                if (player.get_color() == "W" and to_point >= 24) or \
-                   (player.get_color() == "B" and to_point < 0):
-                    to_point = BEAR_OFF_W_POINT if player.get_color() == "W" else BEAR_OFF_B_POINT
+            self.__remaining_moves__.remove(die_value)
+            return True
+        except ValueError:
+            return False
 
-            try:
-                self.__board__.move_checker(player, from_point - 1, to_point, [die_value])
-                self.__remaining_moves__.remove(die_value)
-                return True
-            except (ValueError, IndexError):
-                # Check for bearing off with a higher die roll
-                if self.__board__.is_ready_to_bear_off(player):
-                    try:
-                        self.__board__.move_checker(
-                            player, 
-                            from_point - 1, 
-                            BEAR_OFF_W_POINT if player.get_color() == "W" else BEAR_OFF_B_POINT, 
-                            [die_value]
-                        )
-                        self.__remaining_moves__.remove(die_value)
-                        return True
-                    except (ValueError, IndexError):
-                        return False
-                return False
-                
     def has_valid_moves(self) -> bool:
         """
         Verifica si el jugador actual tiene movimientos válidos.
@@ -147,45 +118,21 @@ class BackgammonGame:
             bool: True si hay movimientos válidos, False en caso contrario
         """
         player = self.get_current_player()
-        board = self.__board__
-        moves = self.__remaining_moves__
 
-        if not moves:
+        if not self.__remaining_moves__:
             return False
 
-        # Check moves from bar
-        if board.get_bar(player.get_color()) > 0:
-            for die in moves:
-                to_point = (die - 1) if player.get_color() == "W" else (24 - die)
-                try:
-                    # Simple validation without deep copy
-                    dest = board.get_point(to_point)
-                    if not dest or dest[0] == player or len(dest) == 1:
-                        return True
-                except (ValueError, IndexError):
-                    continue
-            return False
+        if self.__board__.get_bar(player.get_color()) > 0:
+            return any(
+                self.__board__.is_valid_move(player, 25, die)
+                for die in self.__remaining_moves__
+            )
 
-        # Check regular moves
-        for point_idx, point in enumerate(board.get_all_points()):
-            if point and point[-1] == player:
-                for die in moves:
-                    to_point = (point_idx + die) if player.get_color() == "W" else (point_idx - die)
-                    
-                    # Check bearing off
-                    if board.is_ready_to_bear_off(player):
-                        if (player.get_color() == "W" and to_point >= 24) or \
-                           (player.get_color() == "B" and to_point < 0):
-                            return True
+        for point_idx, point in enumerate(self.__board__.get_all_points()):
+            if point and point[0] == player:
+                if any(self.__board__.is_valid_move(player, point_idx, die) for die in self.__remaining_moves__):
+                    return True
 
-                    # Check normal move
-                    if 0 <= to_point < 24:
-                        try:
-                            dest = board.get_point(to_point)
-                            if not dest or dest[0] == player or len(dest) == 1:
-                                return True
-                        except (ValueError, IndexError):
-                            continue
         return False
 
     def get_board(self) -> Board:
@@ -215,9 +162,9 @@ class BackgammonGame:
         """
         return self.__player2__
 
-    def set_player_names(self, name1: str, name2: str):
+    def start_new_game(self, name1: str, name2: str):
         """
-        Establece los nombres de los jugadores.
+        Establece los nombres de los jugadores y reinicia el tablero.
         
         Args:
             name1 (str): Nombre del jugador 1

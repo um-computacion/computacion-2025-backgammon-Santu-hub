@@ -29,7 +29,6 @@ class Board:
             p1 (Player): Primer jugador (Blancas)
             p2 (Player): Segundo jugador (Negras)
         """
-        # Limpia el tablero por si se reutiliza
         self.__points__ = [[] for _ in range(24)]
         self.__borne_off__ = {"W": 0, "B": 0}
         self.__bar__ = {"W": 0, "B": 0}
@@ -118,11 +117,13 @@ class Board:
         Returns:
             bool: True si puede retirar fichas, False en caso contrario
         """
-        off_home_board_range = range(0, 18) if player.get_color() == "W" else range(6, 24)
-        for point_idx in off_home_board_range:
-            if player in self.__points__[point_idx]:
-                return False
-        return self.__bar__[player.get_color()] == 0
+        home_board_range = range(18, 24) if player.get_color() == "W" else range(0, 6)
+        checkers_in_home_board = sum(
+            len(self.get_point(i))
+            for i in home_board_range
+            if self.get_point(i) and self.get_point(i)[0] == player
+        )
+        return checkers_in_home_board + self.get_borne_off(player.get_color()) == 15
 
     def has_won(self, player: Player) -> bool:
         """
@@ -134,91 +135,117 @@ class Board:
         Returns:
             bool: True si el jugador ganó, False en caso contrario
         """
-        return self.__borne_off__[player.get_color()] == 15
+        return self.get_borne_off(player.get_color()) == 15
 
-    def move_checker(self, player: Player, from_point: int, to_point: int, dice_roll: List[int]):
+    def _can_move_to_point(self, player: Player, to_point: int) -> bool:
+        """Verifica si un punto de destino es válido para un movimiento."""
+        if not (0 <= to_point < 24):
+            return False
+
+        destination_content = self.get_point(to_point)
+        return (
+            not destination_content or
+            destination_content[0] == player or
+            len(destination_content) == 1
+        )
+
+    def is_valid_move(self, player: Player, from_point: int, die_value: int) -> bool:
         """
-        Mueve una ficha de un punto a otro o la retira del tablero, validando el movimiento.
+        Verifica si un movimiento es válido sin ejecutarlo.
         
         Args:
             player (Player): Jugador que realiza el movimiento
-            from_point (int): Punto de origen
-            to_point (int): Punto de destino o BEAR_OFF_*_POINT
-            dice_roll (List[int]): Valores disponibles de dados
+            from_point (int): Punto de origen (0-24, 25 para la barra)
+            die_value (int): Valor del dado
             
+        Returns:
+            bool: True si el movimiento es válido, False en caso contrario
+        """
+        if from_point == 25:
+            if self.get_bar(player.get_color()) == 0:
+                return False
+            to_point = (die_value - 1) if player.get_color() == "W" else (24 - die_value)
+            return self._can_move_to_point(player, to_point)
+
+        source_content = self.get_point(from_point)
+        if not source_content or source_content[0] != player:
+            return False
+
+        direction = 1 if player.get_color() == "W" else -1
+        to_point = from_point + die_value * direction
+
+        if self.is_ready_to_bear_off(player):
+            is_exact_move = (player.get_color() == 'W' and from_point + die_value == 24) or \
+                            (player.get_color() == 'B' and from_point - die_value == -1)
+            
+            if is_exact_move:
+                return True
+
+            is_overshoot = (player.get_color() == 'W' and to_point > 24) or \
+                           (player.get_color() == 'B' and to_point < -1)
+
+            if is_overshoot:
+                if player.get_color() == 'W':
+                    higher_points_range = range(from_point + 1, 24)
+                else:
+                    higher_points_range = range(0, from_point)
+                return not any(self.get_point(i) and self.get_point(i)[0] == player for i in higher_points_range)
+
+        return self._can_move_to_point(player, to_point)
+
+    def move_checker(self, player: Player, from_point: int, die_value: int):
+        """
+        Mueve una ficha de un punto a otro o la retira del tablero.
+
+        Args:
+            player (Player): Jugador que realiza el movimiento
+            from_point (int): Punto de origen (0-23)
+            die_value (int): Valor del dado a utilizar
+
         Raises:
             ValueError: Si el movimiento es inválido
         """
-        is_bearing_off = (player.get_color() == "W" and to_point == BEAR_OFF_W_POINT) or \
-                         (player.get_color() == "B" and to_point == BEAR_OFF_B_POINT)
-        
-        if self.__bar__[player.get_color()] > 0:
-            raise ValueError("Debes reingresar tus fichas desde la barra primero.")
+        if not self.is_valid_move(player, from_point, die_value):
+            raise ValueError("Movimiento inválido.")
 
-        source_point_content = self.get_point(from_point)
-        if not source_point_content or source_point_content[-1] != player:
-            raise ValueError("No puedes mover una ficha que no es tuya.")
+        direction = 1 if player.get_color() == "W" else -1
+        to_point = from_point + die_value * direction
+        source_content = self.get_point(from_point)
 
-        if is_bearing_off:
-            if not self.is_ready_to_bear_off(player):
-                raise ValueError("No puedes retirar fichas hasta que todas estén en tu home board.")
-            
-            move_distance = abs(to_point - from_point)
-            if move_distance not in dice_roll:
-                raise ValueError(f"La distancia del movimiento ({move_distance}) no coincide con la tirada ({dice_roll}).")
-
-            self.get_point(from_point).pop()
+        if self.is_ready_to_bear_off(player) and \
+           ((player.get_color() == "W" and to_point >= 24) or \
+            (player.get_color() == "B" and to_point <= -1)):
+            source_content.pop()
             self.__borne_off__[player.get_color()] += 1
-        else:
-            move_distance = to_point - from_point
-            if player.get_color() == "W" and move_distance < 0:
-                raise ValueError("El jugador blanco solo puede mover hacia adelante.")
-            if player.get_color() == "B" and move_distance > 0:
-                raise ValueError("El jugador negro solo puede mover hacia adelante.")
+            return
 
-            if abs(move_distance) not in dice_roll:
-                raise ValueError(f"La distancia del movimiento no coincide con la tirada.")
+        destination_content = self.get_point(to_point)
+        if destination_content and destination_content[0] != player:
+            opponent_checker = destination_content.pop()
+            self.__bar__[opponent_checker.get_color()] += 1
 
-            destination_point_content = self.get_point(to_point)
-            if destination_point_content and destination_point_content[0] != player:
-                if len(destination_point_content) > 1:
-                    raise ValueError("No se puede mover a un punto bloqueado.")
-                
-                # Hit a blot
-                opponent_checker = self.get_point(to_point).pop()
-                self.__bar__[opponent_checker.get_color()] += 1
+        source_content.pop()
+        self.place_checker(to_point, player)
 
-            checker = self.get_point(from_point).pop()
-            self.place_checker(to_point, checker)
-
-    def move_checker_from_bar(self, player: Player, to_point: int, dice_roll: List[int]):
+    def move_checker_from_bar(self, player: Player, die_value: int):
         """
         Mueve una ficha desde la barra al tablero.
         
         Args:
             player (Player): Jugador que reingresa la ficha
-            to_point (int): Punto de destino
-            dice_roll (List[int]): Valores disponibles de dados
+            die_value (int): Valor del dado a utilizar
             
         Raises:
             ValueError: Si el movimiento es inválido
         """
-        if self.__bar__[player.get_color()] == 0:
-            raise ValueError("No tienes fichas en la barra.")
+        if not self.is_valid_move(player, 25, die_value):
+            raise ValueError("Movimiento desde la barra inválido.")
 
-        # La tirada de dado corresponde al índice del punto
-        required_roll = to_point + 1 if player.get_color() == "W" else 24 - to_point
+        to_point = (die_value - 1) if player.get_color() == "W" else (24 - die_value)
         
-        if required_roll not in dice_roll:
-            raise ValueError("La tirada no permite reingresar a ese punto.")
-
-        destination_point_content = self.get_point(to_point)
-        if destination_point_content and destination_point_content[0] != player:
-            if len(destination_point_content) > 1:
-                raise ValueError("No se puede reingresar a un punto bloqueado.")
-            
-            # Hit a blot
-            opponent_checker = self.get_point(to_point).pop()
+        destination_content = self.get_point(to_point)
+        if destination_content and destination_content[0] != player:
+            opponent_checker = destination_content.pop()
             self.__bar__[opponent_checker.get_color()] += 1
 
         self.__bar__[player.get_color()] -= 1
