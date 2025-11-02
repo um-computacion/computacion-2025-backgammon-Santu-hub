@@ -68,7 +68,7 @@ backgammon/
 
 1. **Clonar el repositorio:**
 ```bash
-git clone <git@github.com:um-computacion/computacion-2025-backgammon-Santu-hub.git>
+git clone <https://github.com/um-computacion/computacion-2025-backgammon-Santu-hub.git>
 cd backgammon
 ```
 
